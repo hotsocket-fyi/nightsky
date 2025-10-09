@@ -24,10 +24,12 @@ body {
 	overflow-y: auto;
 	overflow-x: hidden;
 }
+#navigation {
+	border-right: 1pt solid #bbb;
+}
 #navigation > nav {
 	display: flex;
 	flex-direction: column;
-	border-right: 1pt solid #bbb;
 	padding-right: 5pt;
 	line-height: 1.5;
 }
@@ -186,8 +188,17 @@ hr {
 	border-color: #60a;
 	color: white;
 }
+
+.feed-item.chained {
+	margin-left: 2ch;
+}
+.feed-item:not(.chained) {
+	padding-bottom: 10pt;
+	border-bottom: 1pt solid #bbb;
+}
+
 .post-item {
-	padding-left: 1ch;
+	margin-left: 1ch;
 }
 .post-header {
 	display: flex;

@@ -1,5 +1,5 @@
 import PostView from "../components/views/PostView.tsx";
-import { ATRecord, AtURI } from "../support/atproto.ts";
+import { AtURI, LocalATRecord, localizeRecord } from "../support/atproto.ts";
 import {
 	client,
 	Embed_Record,
@@ -10,12 +10,25 @@ import {
 	Post,
 	RecordRef,
 } from "../support/bsky.ts";
+import Constellation from "../support/constellation.ts";
 import PostComposer from "./PostComposer.tsx";
 import { useEffect, useState } from "preact/hooks";
 
-export default function FeedItemView({ item }: { item: FeedItem }) {
-	const [quote, setQuote] = useState<ATRecord<Post>>();
+export type ChainOpts = {
+	sameAuthor: boolean;
+	shouldChain: boolean;
+	chained?: boolean;
+};
+
+export default function FeedItemView({ item, chainOpts }: { item: FeedItem; chainOpts: ChainOpts }) {
+	const [quote, setQuote] = useState<LocalATRecord<Post>>();
+	const [chained, setChained] = useState<FeedItem>();
 	const [altQuote, setAltQuote] = useState<string>();
+	const chainedOpts: ChainOpts = {
+		sameAuthor: chainOpts.sameAuthor,
+		shouldChain: chainOpts.shouldChain,
+		chained: true,
+	};
 	// if (!IS_BROWSER) return;
 	let recordRef: RecordRef | undefined;
 	// let media: EmbedImageData[] | Embed_Video | undefined;
@@ -38,23 +51,51 @@ export default function FeedItemView({ item }: { item: FeedItem }) {
 	}
 	useEffect(() => {
 		(async () => {
-			if (recordRef) {
-				const uri = AtURI.fromString(recordRef.uri);
-				if (uri.collection == "app.bsky.feed.post") {
-					setQuote(await client.getRecord(recordRef));
-				} else {
-					console.warn(`hey dumbass you gotta add support for ${uri.collection} in FeedItemView at some point`);
-					setAltQuote(uri.collection!);
+			try {
+				if (recordRef) {
+					const uri = AtURI.fromString(recordRef.uri);
+					if (uri.collection == "app.bsky.feed.post") {
+						setQuote(await client.getRecord(recordRef));
+					} else {
+						console.warn(`hey dumbass you gotta add support for ${uri.collection} in FeedItemView at some point`);
+						setAltQuote(uri.collection!);
+					}
 				}
+			} catch (error) {
+				console.error("Error loading quote:", error);
+			}
+		})();
+		(async () => {
+			try {
+				if (chainOpts.shouldChain) {
+					const links = await Constellation.getLinks({
+						target: item.post.uri,
+						collection: "app.bsky.feed.post",
+						path: ".reply.parent.uri",
+						did: chainOpts.sameAuthor ? item.author.doc.did : undefined,
+						limit: 1,
+					});
+					if (links.length > 0) {
+						const record = await client.getRecord<Post>(links[0]);
+						const author = await client.getAccount(record.uri.authority!);
+						setChained({ author: author, post: record });
+					}
+				}
+			} catch (error) {
+				console.error("Error loading chained post:", error);
 			}
 		})();
 	}, []);
+	const classNames: string[] = ["feed-item"];
+	if (chainOpts.chained) {
+		classNames.push("chained");
+	}
 	return (
-		<div class="feed-item">
-			<PostView item={item} />
+		<div className={classNames.join(" ")}>
+			<PostView clickable item={item} />
 			{quote != undefined && (
 				<div class="quote quote-post">
-					<PostView item={{ post: quote, author: item.author }} />
+					<PostView clickable item={{ post: localizeRecord(quote), author: item.author }} />
 				</div>
 			)}
 			{altQuote != undefined && (
@@ -65,8 +106,8 @@ export default function FeedItemView({ item }: { item: FeedItem }) {
 			<div class="post-controls">
 				<PostComposer reply={item} />
 				<PostComposer quote={item} />
-				<hr />
 			</div>
+			{chained && <FeedItemView chainOpts={chainedOpts} item={chained} />}
 		</div>
 	);
 }

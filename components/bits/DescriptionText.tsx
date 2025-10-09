@@ -1,4 +1,4 @@
-import { handleExpression, linkExpression } from "_/support/expr.ts";
+import { handleExpression, lineExpression, linkExpression } from "_/support/expr.ts";
 import { HTMLAttributes } from "preact";
 export default function DescriptionText(
 	{ text, className, ...props }: Omit<HTMLAttributes<HTMLParagraphElement>, "className"> & {
@@ -6,16 +6,23 @@ export default function DescriptionText(
 		className?: string;
 	},
 ) {
-	const handleSplit = text.split(handleExpression);
+	const lineSplit = text.split(lineExpression);
 	const parts: string[] = [];
-	for (const maybeHandle of handleSplit) {
-		if (maybeHandle.startsWith("@")) {
-			parts.push(maybeHandle);
+	for (const maybeLine of lineSplit) {
+		if (maybeLine == "\n") {
+			parts.push(maybeLine);
 			continue;
 		}
-		const linkSplit = maybeHandle.split(linkExpression);
-		for (const maybeLink of linkSplit) {
-			parts.push(maybeLink);
+		const handleSplit = maybeLine.split(handleExpression);
+		for (const maybeHandle of handleSplit) {
+			if (maybeHandle.startsWith("@")) {
+				parts.push(maybeHandle);
+				continue;
+			}
+			const linkSplit = maybeHandle.split(linkExpression);
+			for (const maybeLink of linkSplit) {
+				parts.push(maybeLink);
+			}
 		}
 	}
 	const classes = className?.split(" ") ?? [""];
@@ -23,7 +30,9 @@ export default function DescriptionText(
 	return (
 		<p class={classes.join(" ")} {...props}>
 			{parts.map((part, idx) => {
-				if (part.match(handleExpression)) {
+				if (part.match(lineExpression)) {
+					return <br key={idx} />;
+				} else if (part.match(handleExpression)) {
 					return (
 						<a
 							href={`/profile/${part.substring(1)}`}

@@ -82,6 +82,19 @@ export type ATRecord<T> = {
 	uri: AtURIString;
 	value: T;
 };
+export type LocalATRecord<T> = {
+	cid: string;
+	uri: AtURI;
+	value: T;
+};
+/** Function that essentially converts the uri field to an AtURI. Makes grabbing parts of them easier. */
+export function localizeRecord<T>(outer: ATRecord<T> | LocalATRecord<T>): LocalATRecord<T> {
+	return {
+		cid: outer.cid,
+		uri: (outer.uri instanceof AtURI ? outer.uri : AtURI.fromString(outer.uri)),
+		value: outer.value,
+	};
+}
 
 type Error = {
 	error: string;
