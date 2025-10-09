@@ -103,12 +103,12 @@ export async function* genLinks(
  * @param path - required, Example: .subject
  */
 export async function countLinks({ target, collection, path }: {
-	target: Target;
+	target: Target | AtURI;
 	collection: NSID;
 	path: string;
 }): Promise<number> {
 	const url = new URL("/links/count", BASEURL);
-	url.searchParams.set("target", target);
+	url.searchParams.set("target", (target instanceof AtURI) ? target.toString()! : target);
 	url.searchParams.set("collection", collection);
 	url.searchParams.set("path", path);
 	return (await (await fetch(url)).json())["total"] as number;

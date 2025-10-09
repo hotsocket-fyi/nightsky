@@ -1,3 +1,4 @@
+import Button from "../components/bits/Button.tsx";
 import PostView from "../components/views/PostView.tsx";
 import { AtURI, LocalATRecord, localizeRecord } from "../support/atproto.ts";
 import {
@@ -7,6 +8,8 @@ import {
 	// Embed_Video,
 	// EmbedImageData,
 	FeedItem,
+	Like,
+	LoginState,
 	Post,
 	RecordRef,
 } from "../support/bsky.ts";
@@ -23,6 +26,8 @@ export type ChainOpts = {
 export default function FeedItemView({ item, chainOpts }: { item: FeedItem; chainOpts: ChainOpts }) {
 	const [quote, setQuote] = useState<LocalATRecord<Post>>();
 	const [chained, setChained] = useState<FeedItem>();
+	const [likes, setLikes] = useState<number>(-1);
+	const [myLike, setMyLike] = useState<AtURI>();
 	const [altQuote, setAltQuote] = useState<string>();
 	const chainedOpts: ChainOpts = {
 		sameAuthor: chainOpts.sameAuthor,
@@ -50,6 +55,7 @@ export default function FeedItemView({ item, chainOpts }: { item: FeedItem; chai
 		}
 	}
 	useEffect(() => {
+		// grab embed record
 		(async () => {
 			try {
 				if (recordRef) {
@@ -65,6 +71,7 @@ export default function FeedItemView({ item, chainOpts }: { item: FeedItem; chai
 				console.error("Error loading quote:", error);
 			}
 		})();
+		// grab next post in chain
 		(async () => {
 			try {
 				if (chainOpts.shouldChain) {
@@ -85,7 +92,55 @@ export default function FeedItemView({ item, chainOpts }: { item: FeedItem; chai
 				console.error("Error loading chained post:", error);
 			}
 		})();
+		// grab like count
+		(async () => {
+			const count = await Constellation.countLinks({
+				target: item.post.uri,
+				collection: "app.bsky.feed.like",
+				path: ".subject.uri",
+			});
+			setLikes(count);
+		})();
 	}, []);
+	useEffect(() => {
+		if (client.loginState.value == LoginState.LOGGED_IN) {
+			// grab own like record
+			(async () => {
+				const like = await Constellation.getLinks({
+					target: item.post.uri,
+					collection: "app.bsky.feed.like",
+					path: ".subject.uri",
+					did: client.miniDoc!.did,
+					limit: 1,
+				});
+				if (like.length > 0) {
+					setMyLike(like[0]);
+				}
+			})();
+		}
+	}, [client.loginState]);
+	async function likePost() {
+		if (myLike) {
+			await client.deleteRecord(myLike);
+			setMyLike(undefined);
+			setLikes(likes - 1);
+		} else {
+			const newRecord = await client.createRecord({
+				repo: client.miniDoc!.did,
+				collection: "app.bsky.feed.like",
+				record: {
+					$type: "app.bsky.feed.like",
+					createdAt: new Date().toISOString(),
+					subject: {
+						uri: item.post.uri.toString()!,
+						cid: item.post.cid,
+					} as RecordRef,
+				} as Like,
+			});
+			setMyLike(AtURI.fromString(newRecord.uri));
+			setLikes(likes + 1);
+		}
+	}
 	const classNames: string[] = ["feed-item"];
 	if (chainOpts.chained) {
 		classNames.push("chained");
@@ -106,6 +161,13 @@ export default function FeedItemView({ item, chainOpts }: { item: FeedItem; chai
 			<div class="post-controls">
 				<PostComposer reply={item} />
 				<PostComposer quote={item} />
+				<Button
+					disabled={client.loginState.value != LoginState.LOGGED_IN}
+					onClick={likePost}
+					className={`post-like ${myLike ? "liked" : ""}`}
+				>
+					{`${likes < 0 ? "?" : likes.toLocaleString()} like${likes > 1 ? "s" : ""}`}
+				</Button>
 			</div>
 			{chained && <FeedItemView chainOpts={chainedOpts} item={chained} />}
 		</div>

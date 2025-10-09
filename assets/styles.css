@@ -251,6 +251,10 @@ input::placeholder {
 	color: maroon;
 }
 
+.post-like.liked {
+	background-color: #afa;
+}
+
 /* tailwind-y classes for functional-type things like acknowledging \n */
 .pre-line {
 	white-space: pre-line;

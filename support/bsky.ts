@@ -167,20 +167,33 @@ class Client {
 			input,
 		);
 	}
+	async deleteRecord(uri: AtURI): Promise<unknown>;
+	async deleteRecord(collection: string, rkey: string): Promise<unknown>;
 	async deleteRecord(
-		collection: string,
-		rkey: string,
+		collectionOrURI: string | AtURI,
+		rkey?: string,
 	) {
 		assert(this.miniDoc != undefined);
 		assert(this.session != undefined);
-		return await this.XCall(
-			"com.atproto.repo.deleteRecord",
-			{
-				repo: this.miniDoc.did,
-				collection: collection,
-				rkey: rkey,
-			},
-		);
+		if (collectionOrURI instanceof AtURI) {
+			return await this.XCall(
+				"com.atproto.repo.deleteRecord",
+				{
+					repo: this.miniDoc.did,
+					collection: collectionOrURI.collection,
+					rkey: collectionOrURI.rkey,
+				},
+			);
+		} else {
+			return await this.XCall(
+				"com.atproto.repo.deleteRecord",
+				{
+					repo: this.miniDoc.did,
+					collection: collectionOrURI,
+					rkey: rkey,
+				},
+			);
+		}
 	}
 	async uploadBlob(
 		uri: string,
@@ -421,6 +434,11 @@ export type Account = {
 export type Follow = {
 	$type: "app.bsky.graph.follow";
 	subject: string;
+	createdAt: string;
+};
+export type Like = {
+	$type: "app.bsky.feed.like";
+	subject: RecordRef;
 	createdAt: string;
 };
 

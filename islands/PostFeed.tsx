@@ -2,8 +2,12 @@ import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import { FeedGenerator, FeedItem } from "../support/bsky.ts";
 import FeedItemView, { ChainOpts } from "./FeedItemView.tsx";
 
+export type FeedConfig = {
+	isPostPage?: boolean;
+};
+
 export default function PostFeed(
-	{ generator }: { generator: FeedGenerator },
+	{ generator, config = { isPostPage: false } }: { generator: FeedGenerator; config?: FeedConfig },
 ) {
 	const [posts, setPosts] = useState<FeedItem[]>([]);
 	const [isDone, setIsDone] = useState(false);
@@ -72,8 +76,11 @@ export default function PostFeed(
 
 	return (
 		<div class="post-feed">
-			{posts.map((item) => {
-				const opts: ChainOpts = { sameAuthor: isProfile, shouldChain: true };
+			{posts.map((item, idx) => {
+				const opts: ChainOpts = {
+					sameAuthor: isProfile,
+					shouldChain: !(config.isPostPage && idx == 0),
+				};
 				return <FeedItemView key={item.post.uri} item={item} chainOpts={opts} />;
 			})}
 			{!isDone && <div ref={sentinelRef} style={{ height: "1px" }} />}

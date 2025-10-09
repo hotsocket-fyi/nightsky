@@ -12,6 +12,6 @@ export default function PostPage({ did, id }: { did: string; id: string }) {
 	}, [did, id]);
 	const generator = useMemo(() => client.threadFeed(new AtURI(did, "app.bsky.feed.post", id)), [IS_BROWSER, did, id]);
 	if (IS_BROWSER) {
-		return <PostFeed generator={generator!} />;
+		return <PostFeed generator={generator!} config={{ isPostPage: true }} />;
 	}
 }
