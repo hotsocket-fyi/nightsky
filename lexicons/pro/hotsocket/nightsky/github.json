@@ -1,0 +1,23 @@
+{
+	"lexicon": 1,
+	"id": "pro.hotsocket.nightsky.github",
+	"defs": {
+		"main": {
+			"type": "record",
+			"description": "Information about a GitHub gist that contains a reference to this account.",
+			"key": "literal:self",
+			"record": {
+				"type": "object",
+				"required": ["login", "gist"],
+				"properties": {
+					"login": {
+						"type": "string"
+					},
+					"gist": {
+						"type": "string"
+					}
+				}
+			}
+		}
+	}
+}

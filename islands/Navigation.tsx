@@ -1,0 +1,68 @@
+import Login from "./Login.tsx";
+import { client, LoginState, XError } from "../support/bsky.ts";
+import { IS_BROWSER } from "fresh/runtime";
+import SessionManager from "./SessionManager.tsx";
+import PostComposer from "./PostComposer.tsx";
+import { useEffect, useState } from "preact/hooks";
+import { contextActions } from "../signals/context.ts";
+
+import "preact/debug";
+import VisitProfileAction from "./VisitProfileAction.tsx";
+import { GithubLink } from "../routes/api/getSponsorInfo.tsx";
+import slingshot from "../support/slingshot.ts";
+import GithubSetupAction from "./GithubSetupAction.tsx";
+//const ghlink = await ;
+/*
+{
+  "gist": "611d6f396f3c85f771a6ff479461ada1",
+  "$type": "pro.hotsocket.nightsky.github",
+  "login": "hotsocket-fyi"
+}
+ */
+export function Navigation() {
+	const [actions, setActions] = useState(contextActions.value);
+	const [github, setGithub] = useState<GithubLink | XError>();
+
+	useEffect(() => {
+		return contextActions.subscribe((value) => {
+			setActions(value);
+		});
+	}, []);
+	useEffect(() => {
+		const unsubscribe = client.loginState.subscribe(async (value) => {
+			if (value == LoginState.LOGGED_IN) {
+				const record = await slingshot.getRecord<GithubLink>(
+					client.miniDoc!.did,
+					"pro.hotsocket.nightsky.github",
+					"self",
+				);
+				console.log(record);
+				if ("error" in record) {
+					setGithub(record as XError);
+				} else {
+					setGithub(record.value);
+				}
+			}
+		});
+		return unsubscribe;
+	}, []);
+
+	if (!IS_BROWSER) return <nav></nav>;
+	return (
+		<nav>
+			<h1>Nightsky</h1>
+			{"actions"}
+			<PostComposer />
+			<VisitProfileAction />
+			<br />
+			{actions && (
+				<>
+					{"context actions"} {actions} <br />
+				</>
+			)}
+			{"settings"}
+			{client.loginState.value == LoginState.LOGGED_IN ? <SessionManager /> : <Login />}
+			{github && "error" in github && <GithubSetupAction />}
+		</nav>
+	);
+}
