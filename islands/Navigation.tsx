@@ -63,6 +63,8 @@ export function Navigation() {
 			{"settings"}
 			{client.loginState.value == LoginState.LOGGED_IN ? <SessionManager /> : <Login />}
 			{github && "error" in github && <GithubSetupAction />}
+
+			<a href="https://github.com/hotsocket-fyi/nightsky" target="_blank" class="source-code-link">Source Code</a>
 		</nav>
 	);
 }

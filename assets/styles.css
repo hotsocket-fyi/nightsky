@@ -244,3 +244,10 @@ input::placeholder {
 .pre-line {
 	white-space: pre-line;
 }
+
+.source-code-link {
+	align-self: center;
+	position: absolute;
+	bottom: 0;
+	font-style: italic;
+}
