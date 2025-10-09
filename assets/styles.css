@@ -148,7 +148,7 @@ hr {
 	font-size: clamp(1rem, 5vw, 2.5rem);
 }
 .avatar {
-	border-radius: 10%;
+	border-radius: 15%;
 	border: 2pt solid white;
 }
 .profile-avatar {
