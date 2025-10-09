@@ -30,6 +30,7 @@ _If you face any trouble with these steps, please do [make an issue](https://git
 - Click this fancy button, and insert your environment variables accordingly:
 
 [![Deploy on Deno](https://deno.com/button)](https://console.deno.com/new?clone=https://github.com/hotsocket-fyi/nightsky)
+- And finally, go to "databases" in your dashboard, and make a new "Deno KV" database.
 
 ## Note to the Nerds
 
