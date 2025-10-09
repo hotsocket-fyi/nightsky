@@ -45,7 +45,7 @@ export default function PostComposer({ reply, quote }: { reply?: FeedItem; quote
 		const text = data.get("text") as string;
 		console.log(text);
 		console.log(files);
-		const isVideo = files[0].type.startsWith("video/");
+		const isVideo = files.length > 0 && files[0].type.startsWith("video/");
 		if (isVideo) assert(files.length == 1);
 		const remoteBlobs: Blob[] = [];
 		for (const file of files) {
