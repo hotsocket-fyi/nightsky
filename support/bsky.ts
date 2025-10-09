@@ -5,7 +5,7 @@ import { signal } from "@preact/signals";
 import { IS_BROWSER } from "fresh/runtime";
 import * as Slingshot from "./slingshot.ts";
 import Constellation from "./constellation.ts";
-import { ATRecord, AtURI, DID, ListRecords } from "./atproto.ts";
+import { AtURI, DID, ListRecords, LocalATRecord, localizeRecord } from "./atproto.ts";
 import { GetSponsorInfoData, GetSponsorInfoResponse } from "../routes/api/getSponsorInfo.tsx";
 
 export enum LoginState {
@@ -222,19 +222,23 @@ class Client {
 	}
 
 	/* less "core"-ish things */
-	async getRecord<T>(ref: RecordRef): Promise<ATRecord<T>>;
+	async getRecord<T>(ref: RecordRef): Promise<LocalATRecord<T>>;
+	async getRecord<T>(uri: AtURI): Promise<LocalATRecord<T>>;
+	async getRecord<T>(repo: string | RecordRef, collection?: string, rkey?: string): Promise<LocalATRecord<T>>;
 	async getRecord<T>(
-		repo: string | RecordRef,
+		repo: string | RecordRef | AtURI,
 		collection?: string,
 		rkey?: string,
 		//service: string | undefined = this.miniDoc!.pds,
-	): Promise<ATRecord<T>> {
+	): Promise<LocalATRecord<T>> {
 		if (typeof repo == "string") {
 			return await Slingshot.getRecord<T>(
 				repo as string,
 				collection!,
 				rkey!,
 			);
+		} else if (repo instanceof AtURI) {
+			return await Slingshot.getUriRecord<T>(repo);
 		} else {
 			return await Slingshot.getUriRecord<T>(
 				AtURI.fromString(repo.uri),
@@ -323,12 +327,50 @@ class Client {
 			for (const post of rsp.records) {
 				if (post.value.reply && !includeReplies) continue;
 				yield {
-					post: post,
+					post: localizeRecord(post),
 					author: account,
 				};
 			}
 			cursor = rsp.cursor;
 			if (!cursor) return;
+		}
+	}
+
+	async *threadFeed(postUri: AtURI): FeedGenerator {
+		const parents: LocalATRecord<Post>[] = [];
+		const post = await this.getRecord<Post>(postUri);
+		let currentParent: RecordRef | undefined = post.value.reply?.parent;
+		while (currentParent) {
+			const currentRecord = await client.getRecord<Post>(currentParent);
+			parents.push(currentRecord);
+			currentParent = currentRecord.value.reply?.parent;
+		}
+		// push out parents
+		while (parents.length > 0) {
+			const parent = parents.pop()!;
+			const author = await client.getAccount(parent.uri.authority!);
+			yield {
+				author: author,
+				post: parent,
+			};
+		}
+		yield {
+			author: await client.getAccount(post.uri.authority!),
+			post: post,
+		};
+		// now grab replies to this post
+		const replies = Constellation.genLinks({
+			target: post.uri.toString()!,
+			collection: "app.bsky.feed.post",
+			path: ".reply.parent.uri",
+		});
+		while (true) {
+			const reply = await replies.next();
+			if (reply.done) break;
+			yield {
+				author: await client.getAccount(reply.value.authority!),
+				post: await client.getRecord<Post>(reply.value),
+			};
 		}
 	}
 
@@ -355,7 +397,7 @@ console.log("i be flossin");
 
 export type FeedGenerator = AsyncGenerator<FeedItem, void, unknown>;
 export type FeedItem = {
-	post: ATRecord<Post>;
+	post: LocalATRecord<Post>;
 	author: Account;
 };
 /** app.bsky.actor.profile */

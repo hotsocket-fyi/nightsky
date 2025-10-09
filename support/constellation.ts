@@ -24,7 +24,7 @@ type Target = AtURIString | DID;
 export async function getLinks(
 	// see i didnt realize you could just do this until i started this project so yay
 	{ target, collection, path, did, limit }: {
-		target: Target;
+		target: Target | AtURI;
 		collection: NSID;
 		path: string;
 		did?: string;
@@ -37,7 +37,7 @@ export async function getLinks(
 	const _path = encodeURIComponent(path);
 	const _limit = limit ? limit.toString() : undefined;
 	const url = new URL("/links", BASEURL);
-	url.searchParams.set("target", target);
+	url.searchParams.set("target", target instanceof AtURI ? target.toString()! : target);
 	url.searchParams.set("collection", collection);
 	url.searchParams.set("path", _path);
 	if (did) {
@@ -56,6 +56,43 @@ export async function getLinks(
 		url.searchParams.set("cursor", cursor);
 	}
 	return records;
+}
+export async function* genLinks(
+	// see i didnt realize you could just do this until i started this project so yay
+	{ target, collection, path, did, limit }: {
+		target: Target;
+		collection: NSID;
+		path: string;
+		did?: string;
+		limit?: number;
+	},
+): AsyncGenerator<AtURI, void, unknown> {
+	if (ValidateNSID(collection) == null) {
+		throw new Error("invalid NSID for collection parameter");
+	}
+	const _path = encodeURIComponent(path);
+	const _limit = limit ? limit.toString() : undefined;
+	const url = new URL("/links", BASEURL);
+	url.searchParams.set("target", target);
+	url.searchParams.set("collection", collection);
+	url.searchParams.set("path", _path);
+	if (did) {
+		url.searchParams.set("did", did);
+	}
+	if (_limit) {
+		url.searchParams.set("limit", _limit);
+	}
+	let cursor = "";
+	while (cursor != null) {
+		const rsp = await fetch(url);
+		const data = await rsp.json() as LinksResponse;
+		const links = data.linking_records.map((x) => new AtURI(x.did, x.collection, x.rkey));
+		for (const link of links) {
+			yield link;
+		}
+		cursor = data.cursor;
+		url.searchParams.set("cursor", cursor);
+	}
 }
 
 /**
@@ -77,7 +114,10 @@ export async function countLinks({ target, collection, path }: {
 	return (await (await fetch(url)).json())["total"] as number;
 }
 
-export default {
+const Constellation = {
 	getLinks,
+	genLinks,
 	countLinks,
 };
+
+export default Constellation;
