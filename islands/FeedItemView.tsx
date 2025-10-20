@@ -1,6 +1,7 @@
 import Button from "../components/bits/Button.tsx";
 import PostView from "../components/views/PostView.tsx";
-import { AtURI, LocalATRecord, localizeRecord } from "../support/atproto.ts";
+import AT from "@/index.ts";
+import { AtURI } from "@/lib.ts";
 import {
 	client,
 	Embed_Record,
@@ -16,6 +17,8 @@ import {
 import Constellation from "../support/constellation.ts";
 import PostComposer from "./PostComposer.tsx";
 import { useEffect, useState } from "preact/hooks";
+import { assert } from "@std/assert";
+import MediaView from "../components/views/MediaView.tsx";
 
 export type ChainOpts = {
 	sameAuthor: boolean;
@@ -24,7 +27,7 @@ export type ChainOpts = {
 };
 
 export default function FeedItemView({ item, chainOpts }: { item: FeedItem; chainOpts: ChainOpts }) {
-	const [quote, setQuote] = useState<LocalATRecord<Post>>();
+	const [quote, setQuote] = useState<AT.com.atproto.repo.getRecord._output<AT.app.bsky.feed.post>>();
 	const [chained, setChained] = useState<FeedItem>();
 	const [likes, setLikes] = useState<number>(-1);
 	const [myLike, setMyLike] = useState<AtURI>();
@@ -41,7 +44,7 @@ export default function FeedItemView({ item, chainOpts }: { item: FeedItem; chai
 	// let hasVideo = false;
 	if (item.post.value.embed) {
 		// app.bsky.embed.[video]
-		const lastPart = item.post.value.embed.$type.substring(item.post.value.embed.$type.lastIndexOf(".") + 1);
+		const lastPart = item.post.value.embed.$type!.substring(item.post.value.embed.$type!.lastIndexOf(".") + 1);
 		// recordWithMedia is weird and annoying like just have a separate media field at that point
 		// hasImages = lastPart == "images" || (lastPart == "recordWithMedia" && "images" in item.post.value.embed);
 		// hasVideo = lastPart == "video" || (lastPart == "recordWithMedia" && "video" in item.post.value.embed);
@@ -59,9 +62,14 @@ export default function FeedItemView({ item, chainOpts }: { item: FeedItem; chai
 		(async () => {
 			try {
 				if (recordRef) {
-					const uri = AtURI.fromString(recordRef.uri);
+					const uri = new AtURI(recordRef.uri);
 					if (uri.collection == "app.bsky.feed.post") {
-						setQuote(await client.getRecord(recordRef));
+						const toQuote = await AT.com.bad_example.repo.getUriRecord<AT.app.bsky.feed.post>(
+							new URL("https://slingshot.microcosm.blue/"),
+							{ at_uri: recordRef.uri },
+						);
+						assert(!("error" in toQuote));
+						setQuote(toQuote);
 					} else {
 						console.warn(`hey dumbass you gotta add support for ${uri.collection} in FeedItemView at some point`);
 						setAltQuote(uri.collection!);
@@ -83,8 +91,12 @@ export default function FeedItemView({ item, chainOpts }: { item: FeedItem; chai
 						limit: 1,
 					});
 					if (links.length > 0) {
-						const record = await client.getRecord<Post>(links[0]);
-						const author = await client.getAccount(record.uri.authority!);
+						const record = await AT.com.bad_example.repo.getUriRecord<AT.app.bsky.feed.post>(
+							new URL("https://slingshot.microcosm.blue/"),
+							{ at_uri: links[0].toString()! },
+						);
+						assert(!("error" in record));
+						const author = await client.getAccount(new AtURI(record.uri).authority!);
 						setChained({ author: author, post: record });
 					}
 				}
@@ -137,7 +149,7 @@ export default function FeedItemView({ item, chainOpts }: { item: FeedItem; chai
 					} as RecordRef,
 				} as Like,
 			});
-			setMyLike(AtURI.fromString(newRecord.uri));
+			setMyLike(new AtURI(newRecord.uri));
 			setLikes(likes + 1);
 		}
 	}
@@ -148,9 +160,13 @@ export default function FeedItemView({ item, chainOpts }: { item: FeedItem; chai
 	return (
 		<div className={classNames.join(" ")}>
 			<PostView clickable item={item} />
+			{item.post.value.embed && (item.post.value.embed.$type == "app.bsky.embed.images") &&
+				(item.post.value.embed as AT.app.bsky.embed.images).images.map((image) => {
+					return <MediaView owner={item.author} media={image} key={image} />;
+				})}
 			{quote != undefined && (
 				<div class="quote quote-post">
-					<PostView clickable item={{ post: localizeRecord(quote), author: item.author }} />
+					<PostView clickable item={{ post: quote, author: item.author }} />
 				</div>
 			)}
 			{altQuote != undefined && (

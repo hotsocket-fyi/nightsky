@@ -2,8 +2,9 @@ import { useState } from "preact/hooks";
 import Button from "../components/bits/Button.tsx";
 import Form from "../components/bits/Form.tsx";
 import Modal from "../components/bits/Modal.tsx";
-import { client, XError } from "../support/bsky.ts";
+import { client } from "../support/bsky.ts";
 import { GithubLink } from "../routes/api/getSponsorInfo.tsx";
+import { XError } from "@/lib.ts";
 
 export default function VisitProfileAction() {
 	const [modal, setModalState] = useState(false);

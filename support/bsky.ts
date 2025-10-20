@@ -3,10 +3,10 @@ import { SetRefreshData } from "../routes/api/setRefresh.tsx";
 import { RefreshSessionData } from "../routes/api/refreshSession.tsx";
 import { signal } from "@preact/signals";
 import { IS_BROWSER } from "fresh/runtime";
-import * as Slingshot from "./slingshot.ts";
 import Constellation from "./constellation.ts";
-import { AtURI, DID, ListRecords, LocalATRecord, localizeRecord } from "./atproto.ts";
+import { AtURI, XBlob, XError } from "@/lib.ts";
 import { GetSponsorInfoData, GetSponsorInfoResponse } from "../routes/api/getSponsorInfo.tsx";
+import AT from "@/index.ts";
 
 export enum LoginState {
 	LOGGED_OUT,
@@ -15,7 +15,7 @@ export enum LoginState {
 }
 
 class Client {
-	miniDoc: Slingshot.MiniDoc | undefined;
+	miniDoc: AT.com.bad_example.identity.resolveMiniDoc.$miniDoc | undefined;
 	session: BaseSession | Session | undefined;
 	loginState = signal(LoginState.LOGGED_OUT);
 	constructor() {}
@@ -72,7 +72,14 @@ class Client {
 	}
 	async login(id: string, password: string) {
 		// snag mini doc from constellation
-		this.miniDoc = await Slingshot.resolveMiniDoc(id);
+		const resolved = await AT.com.bad_example.identity.resolveMiniDoc(
+			new URL("https://slingshot.microcosm.blue/"),
+			{
+				identifier: id,
+			},
+		);
+		assert(!("error" in resolved));
+		this.miniDoc = resolved;
 		// create session
 		// rate limit: 30 per 5 minutes, 300 per day
 		const session = await this.XCall(
@@ -116,10 +123,16 @@ class Client {
 			method: "POST",
 			body: JSON.stringify(body),
 		});
-		const refreshedSession = await refreshFetch.json() as Session;
-		this.session = refreshedSession;
-		localStorage.accessJwt = refreshedSession.accessJwt;
-		this.loginState.value = LoginState.LOGGED_IN;
+		const refreshedSession = await refreshFetch.json() as Session | XError;
+		if ("error" in refreshedSession) {
+			this.session = undefined;
+			localStorage.removeItem("accessJwt");
+			this.loginState.value = LoginState.LOGGED_OUT;
+		} else {
+			this.session = refreshedSession;
+			localStorage.accessJwt = refreshedSession.accessJwt;
+			this.loginState.value = LoginState.LOGGED_IN;
+		}
 	}
 	async api_deleteSession() {
 		await fetch("/api/deleteSession", {
@@ -128,15 +141,31 @@ class Client {
 		});
 	}
 	async resume() {
+		if (!localStorage.accessJwt) {
+			this.loginState.value = LoginState.LOGGED_OUT;
+			return;
+		}
 		this.loginState.value = LoginState.RESUMING;
-		this.miniDoc = await Slingshot.resolveMiniDoc(localStorage.did);
+		const resolved = await AT.com.bad_example.identity.resolveMiniDoc(
+			new URL("https://slingshot.microcosm.blue/"),
+			{
+				identifier: localStorage.did,
+			},
+		);
+		assert(!("error" in resolved));
+		this.miniDoc = resolved;
 		this.session = {
 			accessJwt: localStorage.accessJwt,
 			did: this.miniDoc.did,
 			handle: this.miniDoc.handle,
 		} as BaseSession;
 		// check if the session is even any good
-		const sesRsp = await this.XQuery<Session>("com.atproto.server.getSession");
+		const sesRsp = await AT.com.atproto.server.getSession(
+			new URL(this.miniDoc.pds),
+			new Headers({
+				"Authorization": "Bearer " + localStorage.accessJwt,
+			}),
+		);
 		if (Object.hasOwn(sesRsp, "error")) {
 			const err = sesRsp as XError;
 			if (err.error == "ExpiredToken") {
@@ -224,46 +253,39 @@ class Client {
 		}
 		return postRes.blob;
 	}
-	async createPost(post: Post) {
+	async createPost(post: AT.app.bsky.feed.post) {
 		assert(this.miniDoc != undefined);
 		assert(this.session != undefined);
-		return await this.createRecord({
-			repo: this.miniDoc.did,
-			collection: "app.bsky.feed.post",
-			record: post,
-		});
-	}
-
-	/* less "core"-ish things */
-	async getRecord<T>(ref: RecordRef): Promise<LocalATRecord<T>>;
-	async getRecord<T>(uri: AtURI): Promise<LocalATRecord<T>>;
-	async getRecord<T>(repo: string | RecordRef, collection?: string, rkey?: string): Promise<LocalATRecord<T>>;
-	async getRecord<T>(
-		repo: string | RecordRef | AtURI,
-		collection?: string,
-		rkey?: string,
-		//service: string | undefined = this.miniDoc!.pds,
-	): Promise<LocalATRecord<T>> {
-		if (typeof repo == "string") {
-			return await Slingshot.getRecord<T>(
-				repo as string,
-				collection!,
-				rkey!,
-			);
-		} else if (repo instanceof AtURI) {
-			return await Slingshot.getUriRecord<T>(repo);
-		} else {
-			return await Slingshot.getUriRecord<T>(
-				AtURI.fromString(repo.uri),
-				repo.cid,
-			);
-		}
+		return await AT.com.atproto.repo.createRecord(
+			new URL(this.miniDoc.pds),
+			{
+				repo: this.miniDoc.did,
+				collection: "app.bsky.feed.post",
+				record: post,
+			},
+			new Headers({
+				"Authorization": "Bearer " + this.session.accessJwt,
+			}),
+		);
 	}
 
 	/* now we're basically just wrapping getRecord */
 	async getProfile(id: string) {
-		const doc = await Slingshot.resolveMiniDoc(id);
-		return (await Slingshot.getRecord<Profile>(doc.did, "app.bsky.actor.profile", "self")).value;
+		const doc = await AT.com.bad_example.identity.resolveMiniDoc(
+			new URL("https://slingshot.microcosm.blue"),
+			{ identifier: id },
+		);
+		assert(!("error" in doc));
+		const result = await AT.com.atproto.repo.getRecord<AT.app.bsky.actor.profile>(
+			new URL("https://slingshot.microcosm.blue"),
+			{
+				repo: doc.did,
+				collection: "app.bsky.actor.profile",
+				rkey: "self",
+			},
+		);
+		assert(!("error" in result));
+		return result;
 	}
 	async getFollow(follower: string, followee: string = this.miniDoc!.did): Promise<AtURI | null> {
 		return (await Constellation.getLinks({
@@ -293,7 +315,7 @@ class Client {
 				createdAt: new Date().toISOString(),
 			} as Follow,
 		});
-		return AtURI.fromString(out.uri);
+		return new AtURI(out.uri);
 	}
 	/** Unfollows an account with the currently signed-in one.
 	 * @param toUnfollow -
@@ -315,7 +337,13 @@ class Client {
 	}
 
 	async getAccount(id: string): Promise<Account> {
-		const doc = await Slingshot.resolveMiniDoc(id);
+		const doc = await AT.com.bad_example.identity.resolveMiniDoc(
+			new URL("https://slingshot.microcosm.blue/"),
+			{
+				identifier: id,
+			},
+		);
+		assert(!("error" in doc));
 		const profile = await this.getProfile(doc.did);
 		const followers = Constellation.countLinks({
 			target: doc.did,
@@ -324,7 +352,7 @@ class Client {
 		});
 		return {
 			doc: doc,
-			profile: profile,
+			profile: profile.value,
 			followers: followers,
 		};
 	}
@@ -332,15 +360,19 @@ class Client {
 	async *authorFeed(account: Account, includeReplies: boolean = false): FeedGenerator {
 		let cursor: string | undefined;
 		while (true) {
-			const rsp = await ListRecords<Post>({
-				repo: account.doc.did,
-				collection: "app.bsky.feed.post",
-				cursor: cursor,
-			}, account.doc.pds);
+			const rsp = await AT.com.atproto.repo.listRecords(
+				new URL(account.doc.pds),
+				{
+					repo: account.doc.did,
+					collection: "app.bsky.feed.post",
+					cursor: cursor,
+				},
+			);
+			assert(!("error" in rsp));
 			for (const post of rsp.records) {
 				if (post.value.reply && !includeReplies) continue;
 				yield {
-					post: localizeRecord(post),
+					post: post as AT.com.atproto.repo.listRecords.$record<AT.app.bsky.feed.post>,
 					author: account,
 				};
 			}
@@ -350,25 +382,33 @@ class Client {
 	}
 
 	async *threadFeed(postUri: AtURI): FeedGenerator {
-		const parents: LocalATRecord<Post>[] = [];
-		const post = await this.getRecord<Post>(postUri);
-		let currentParent: RecordRef | undefined = post.value.reply?.parent;
+		const parents: AT.com.atproto.repo.getRecord._output<AT.app.bsky.feed.post>[] = [];
+		const post = await AT.com.bad_example.repo.getUriRecord<AT.app.bsky.feed.post>(
+			new URL("https://slingshot.microcosm.blue/"),
+			{ at_uri: postUri.toString()! },
+		);
+		assert(!("error" in post));
+		let currentParent: AT.com.atproto.repo.strongRef | undefined = post.value.reply?.parent;
 		while (currentParent) {
-			const currentRecord = await client.getRecord<Post>(currentParent);
+			const currentRecord = await AT.com.bad_example.repo.getUriRecord<AT.app.bsky.feed.post>(
+				new URL("https://slingshot.microcosm.blue/"),
+				{ at_uri: currentParent.uri.toString()! },
+			);
+			assert(!("error" in currentRecord));
 			parents.push(currentRecord);
 			currentParent = currentRecord.value.reply?.parent;
 		}
 		// push out parents
 		while (parents.length > 0) {
 			const parent = parents.pop()!;
-			const author = await client.getAccount(parent.uri.authority!);
+			const author = await client.getAccount(new AtURI(parent.uri).authority!);
 			yield {
 				author: author,
 				post: parent,
 			};
 		}
 		yield {
-			author: await client.getAccount(post.uri.authority!),
+			author: await client.getAccount(new AtURI(post.uri).authority!),
 			post: post,
 		};
 		// now grab replies to this post
@@ -380,14 +420,19 @@ class Client {
 		while (true) {
 			const reply = await replies.next();
 			if (reply.done) break;
+			const currentRecord = await AT.com.bad_example.repo.getUriRecord<AT.app.bsky.feed.post>(
+				new URL("https://slingshot.microcosm.blue/"),
+				{ at_uri: reply.value.toString()! },
+			);
+			assert(!("error" in currentRecord));
 			yield {
 				author: await client.getAccount(reply.value.authority!),
-				post: await client.getRecord<Post>(reply.value),
+				post: currentRecord,
 			};
 		}
 	}
 
-	async getSponsorInfo(did: DID, forceRecheck?: boolean): Promise<GetSponsorInfoResponse> {
+	async getSponsorInfo(did: string, forceRecheck?: boolean): Promise<GetSponsorInfoResponse> {
 		return await (await fetch("/api/getSponsorInfo", {
 			method: "POST",
 			body: JSON.stringify({ did: did, forceRecheck: forceRecheck } as GetSponsorInfoData),
@@ -395,7 +440,10 @@ class Client {
 	}
 }
 
-export function blobToURL(miniDoc: Slingshot.MiniDoc, blob: Blob | undefined): string | undefined {
+export function blobToURL(
+	miniDoc: AT.com.bad_example.identity.resolveMiniDoc.$miniDoc,
+	blob: XBlob | undefined,
+): string | undefined {
 	if (!blob) return undefined;
 	return `${miniDoc.pds}/xrpc/com.atproto.sync.getBlob?did=${miniDoc.did}&cid=${blob.ref.$link}`;
 }
@@ -410,7 +458,7 @@ console.log("i be flossin");
 
 export type FeedGenerator = AsyncGenerator<FeedItem, void, unknown>;
 export type FeedItem = {
-	post: LocalATRecord<Post>;
+	post: AT.com.atproto.repo.getRecord._output<AT.app.bsky.feed.post>;
 	author: Account;
 };
 /** app.bsky.actor.profile */
@@ -423,8 +471,8 @@ export type Profile = {
 	indexedAt: string;
 };
 export type Account = {
-	doc: Slingshot.MiniDoc;
-	profile: Profile;
+	doc: AT.com.bad_example.identity.resolveMiniDoc.$miniDoc;
+	profile: AT.app.bsky.actor.profile;
 	/** Getting a follower count is slow, so this is a promise to await later. */
 	followers: Promise<number>;
 	// would love this, but spamming com.atproto.
@@ -573,9 +621,4 @@ export type RecordOutput = {
 	cid: string;
 	ref?: Repo_CommitMeta;
 	validationStatus?: "valid" | "unknown";
-};
-
-export type XError = {
-	error: string; //"InvalidRequest" | "ExpiredToken" | "InvalidToken";
-	message?: string;
 };

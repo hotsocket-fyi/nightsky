@@ -1,18 +1,7 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import Modal from "../components/bits/Modal.tsx";
 import Button from "../components/bits/Button.tsx";
-import {
-	Blob,
-	client,
-	Embed_Images,
-	Embed_Record,
-	Embed_RecordMedia,
-	Embed_Video,
-	FeedItem,
-	LoginState,
-	Post,
-	Post_ReplyRef,
-} from "../support/bsky.ts";
+import { client, FeedItem, LoginState } from "../support/bsky.ts";
 import { IS_BROWSER } from "fresh/runtime";
 import Form from "../components/bits/Form.tsx";
 import Attachinator from "./Attachinator.tsx";
@@ -20,6 +9,8 @@ import { assert } from "@std/assert";
 import PostView from "../components/views/PostView.tsx";
 import { JSX } from "preact/jsx-runtime";
 import constellation from "../support/constellation.ts";
+import AT from "@/index.ts";
+import { XBlob } from "@/lib.ts";
 
 export default function PostComposer({ reply, quote }: { reply?: FeedItem; quote?: FeedItem }) {
 	const [modal, setModalState] = useState(false);
@@ -47,11 +38,11 @@ export default function PostComposer({ reply, quote }: { reply?: FeedItem; quote
 		console.log(files);
 		const isVideo = files.length > 0 && files[0].type.startsWith("video/");
 		if (isVideo) assert(files.length == 1);
-		const remoteBlobs: Blob[] = [];
+		const remoteBlobs: XBlob[] = [];
 		for (const file of files) {
 			remoteBlobs.push(await client.uploadBlob(URL.createObjectURL(file)));
 		}
-		let postReply: Post_ReplyRef | undefined;
+		let postReply: AT.app.bsky.feed.post.$replyRef | undefined;
 		if (reply) {
 			//@ts-ignore deno-ts(2739) calm down bud im getting to it
 			postReply = {};
@@ -59,43 +50,43 @@ export default function PostComposer({ reply, quote }: { reply?: FeedItem; quote
 				postReply!.root = reply.post.value.reply.root;
 			} else {
 				postReply!.root = {
-					cid: reply.post.cid,
+					cid: reply.post.cid!,
 					uri: reply.post.uri,
 				};
 			}
 			postReply!.parent = {
-				cid: reply.post.cid,
+				cid: reply.post.cid!,
 				uri: reply.post.uri,
 			};
 		}
-		const wipPost: Post = {
+		const wipPost: AT.app.bsky.feed.post = {
 			$type: "app.bsky.feed.post",
 			createdAt: new Date().toISOString(),
 			text: composerRef.current!.value,
 			reply: postReply,
 			langs: [navigator.language.substring(0, 2) ?? "en"],
 		};
-		let toEmbed: Embed_Images | Embed_Video | undefined;
+		let toEmbed: AT.app.bsky.embed.images | AT.app.bsky.embed.video | undefined;
 		if (files.length > 0) {
 			if (isVideo) {
 				toEmbed = {
 					$type: "app.bsky.embed.video",
 					video: remoteBlobs[0],
-				} as Embed_Video;
+				} as AT.app.bsky.embed.video;
 			} else {
 				toEmbed = {
 					$type: "app.bsky.embed.images",
 					images: remoteBlobs.map((b) => {
 						return { image: b, alt: "" };
 					}),
-				} as Embed_Images;
+				} as AT.app.bsky.embed.images;
 			}
 		}
 		if (quote) {
-			const postQuote: Embed_Record = {
+			const postQuote: AT.app.bsky.embed.record = {
 				$type: "app.bsky.embed.record",
 				record: {
-					cid: quote.post.cid,
+					cid: quote.post.cid!,
 					uri: quote.post.uri,
 				},
 			};
@@ -105,7 +96,7 @@ export default function PostComposer({ reply, quote }: { reply?: FeedItem; quote
 					$type: "app.bsky.embed.recordWithMedia",
 					record: postQuote,
 					media: toEmbed,
-				} as Embed_RecordMedia;
+				} as AT.app.bsky.embed.recordWithMedia;
 			} else {
 				wipPost.embed = postQuote;
 			}
@@ -119,8 +110,8 @@ export default function PostComposer({ reply, quote }: { reply?: FeedItem; quote
 		setModalState(false);
 	}
 	let replyView: JSX.Element | undefined;
-	if (reply) replyView = <PostView item={reply} />;
-	if (quote) replyView = <PostView item={quote} />;
+	if (reply) replyView = <PostView item={reply} clickable />;
+	if (quote) replyView = <PostView item={quote} clickable />;
 	return (
 		<>
 			<Button

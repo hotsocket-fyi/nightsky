@@ -266,3 +266,17 @@ input::placeholder {
 	bottom: 0;
 	font-style: italic;
 }
+
+.MediaView {
+	overflow-y: hidden;
+	overflow-x: scroll;
+	display: flex;
+	align-items: start;
+	flex-direction: row;
+}
+.MediaView > * {
+	object-fit: contain;
+	max-height: 100%;
+	max-width: 100%;
+	max-height: 25em;
+}

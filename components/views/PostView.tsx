@@ -1,10 +1,11 @@
-import { blobToURL, FeedItem, XError } from "../../support/bsky.ts";
+import { AtURI } from "@/lib.ts";
+import { blobToURL, FeedItem } from "../../support/bsky.ts";
 import DescriptionText from "../bits/DescriptionText.tsx";
 
 // i have decided to make this a perfect little angel with no recursion. don't fuck this up for me PLEASE
 export default function PostView({ item, clickable }: { item: FeedItem; clickable: boolean }) {
 	if ("error" in item.post) {
-		const error = item.post as XError;
+		const error = item.post;
 		return (
 			<div class="post-view error">
 				Error loading post: {error.error}: {error.message}
@@ -27,7 +28,11 @@ export default function PostView({ item, clickable }: { item: FeedItem; clickabl
 							: date}
 					</div>
 					{clickable
-						? <a href={`/profile/${item.author.doc.did}/post/${item.post.uri.rkey}`} class="post-date">{date}</a>
+						? (
+							<a href={`/profile/${item.author.doc.did}/post/${new AtURI(item.post.uri).rkey!}`} class="post-date">
+								{date}
+							</a>
+						)
 						: date}
 				</div>
 				<div class="post-content">

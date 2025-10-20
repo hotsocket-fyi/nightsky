@@ -1,4 +1,4 @@
-import { AtURI, AtURIString, DID, NSID, ValidateNSID } from "./atproto.ts";
+import { AtURI } from "@/lib.ts";
 
 const BASEURL = "https://constellation.microcosm.blue";
 
@@ -16,7 +16,6 @@ type LinksResponse = {
 	cursor: string;
 };
 
-type Target = AtURIString | DID;
 /**
  * Retrieves an array of record references to records containing links to the specified target.
  * @throws When the provided NSID is invalid.
@@ -24,16 +23,13 @@ type Target = AtURIString | DID;
 export async function getLinks(
 	// see i didnt realize you could just do this until i started this project so yay
 	{ target, collection, path, did, limit }: {
-		target: Target | AtURI;
-		collection: NSID;
+		target: string | AtURI;
+		collection: string;
 		path: string;
 		did?: string;
 		limit?: number;
 	},
 ): Promise<AtURI[]> {
-	if (ValidateNSID(collection) == null) {
-		throw new Error("invalid NSID for collection parameter");
-	}
 	const _path = encodeURIComponent(path);
 	const _limit = limit ? limit.toString() : undefined;
 	const url = new URL("/links", BASEURL);
@@ -60,16 +56,13 @@ export async function getLinks(
 export async function* genLinks(
 	// see i didnt realize you could just do this until i started this project so yay
 	{ target, collection, path, did, limit }: {
-		target: Target;
-		collection: NSID;
+		target: string;
+		collection: string;
 		path: string;
 		did?: string;
 		limit?: number;
 	},
 ): AsyncGenerator<AtURI, void, unknown> {
-	if (ValidateNSID(collection) == null) {
-		throw new Error("invalid NSID for collection parameter");
-	}
 	const _path = encodeURIComponent(path);
 	const _limit = limit ? limit.toString() : undefined;
 	const url = new URL("/links", BASEURL);
@@ -103,8 +96,8 @@ export async function* genLinks(
  * @param path - required, Example: .subject
  */
 export async function countLinks({ target, collection, path }: {
-	target: Target | AtURI;
-	collection: NSID;
+	target: string | AtURI;
+	collection: string;
 	path: string;
 }): Promise<number> {
 	const url = new URL("/links/count", BASEURL);

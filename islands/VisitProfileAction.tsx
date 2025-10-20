@@ -2,8 +2,8 @@ import { useState } from "preact/hooks";
 import Button from "../components/bits/Button.tsx";
 import Form from "../components/bits/Form.tsx";
 import Modal from "../components/bits/Modal.tsx";
-import Slingshot from "../support/slingshot.ts";
-import { XError } from "../support/bsky.ts";
+import { XError } from "@/lib.ts";
+import AT from "@/index.ts";
 
 export default function VisitProfileAction() {
 	const [modal, setModalState] = useState(false);
@@ -14,7 +14,10 @@ export default function VisitProfileAction() {
 			setMessage("You must enter a destination profile!");
 			return;
 		}
-		const doc = await Slingshot.resolveMiniDoc(destination as string);
+		const doc = await AT.com.bad_example.identity.resolveMiniDoc(
+			new URL("https://slingshot.microcosm.blue/"),
+			{ identifier: destination as string },
+		);
 		if ("error" in doc) {
 			setMessage((doc as unknown as XError).message ?? "(no mesage)");
 		} else {

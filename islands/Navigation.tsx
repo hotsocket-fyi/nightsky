@@ -1,5 +1,5 @@
 import Login from "./Login.tsx";
-import { client, LoginState, XError } from "../support/bsky.ts";
+import { client, LoginState } from "../support/bsky.ts";
 import { IS_BROWSER } from "fresh/runtime";
 import SessionManager from "./SessionManager.tsx";
 import PostComposer from "./PostComposer.tsx";
@@ -9,8 +9,9 @@ import { contextActions } from "../signals/context.ts";
 import "preact/debug";
 import VisitProfileAction from "./VisitProfileAction.tsx";
 import { GithubLink } from "../routes/api/getSponsorInfo.tsx";
-import slingshot from "../support/slingshot.ts";
 import GithubSetupAction from "./GithubSetupAction.tsx";
+import AT from "@/index.ts";
+import { XError } from "@/lib.ts";
 //const ghlink = await ;
 /*
 {
@@ -21,7 +22,7 @@ import GithubSetupAction from "./GithubSetupAction.tsx";
  */
 export function Navigation() {
 	const [actions, setActions] = useState(contextActions.value);
-	const [github, setGithub] = useState<GithubLink | XError>();
+	const [github, setGithub] = useState<AT.pro.hotsocket.nightsky.github | XError>();
 
 	useEffect(() => {
 		return contextActions.subscribe((value) => {
@@ -31,10 +32,13 @@ export function Navigation() {
 	useEffect(() => {
 		const unsubscribe = client.loginState.subscribe(async (value) => {
 			if (value == LoginState.LOGGED_IN) {
-				const record = await slingshot.getRecord<GithubLink>(
-					client.miniDoc!.did,
-					"pro.hotsocket.nightsky.github",
-					"self",
+				const record = await AT.com.atproto.repo.getRecord<AT.pro.hotsocket.nightsky.github>(
+					new URL("https://slingshot.microcosm.blue/"),
+					{
+						repo: client.miniDoc!.did,
+						collection: "pro.hotsocket.nightsky.github",
+						rkey: "self",
+					},
 				);
 				console.log(record);
 				if ("error" in record) {

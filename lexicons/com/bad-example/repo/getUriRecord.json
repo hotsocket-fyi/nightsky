@@ -1,0 +1,59 @@
+{
+	"lexicon": 1,
+	"id": "com.bad-example.repo.getUriRecord",
+	"defs": {
+		"main": {
+			"type": "query",
+			"description": "Ergonomic complement to com.atproto.repo.getRecord which accepts an at-uri instead of individual repo/collection/rkey params",
+			"parameters": {
+				"type": "params",
+				"required": [
+					"at_uri"
+				],
+				"properties": {
+					"at_uri": {
+						"type": "string",
+						"format": "at-uri",
+						"description": "The at-uri of the record. The identifier can be a DID or an atproto handle, and the collection and rkey segments must be present."
+					},
+					"cid": {
+						"type": "string",
+						"format": "cid",
+						"description": "The CID of the version of the record. If not specified, then return the most recent version."
+					}
+				}
+			},
+			"output": {
+				"encoding": "application/json",
+				"schema": {
+					"type": "object",
+					"required": [
+						"uri",
+						"value"
+					],
+					"properties": {
+						"uri": {
+							"type": "string",
+							"format": "at-uri"
+						},
+						"cid": {
+							"type": "string",
+							"format": "cid"
+						},
+						"value": {
+							"type": "unknown"
+						}
+					}
+				}
+			},
+			"errors": [
+				{
+					"name": "RecordNotFound"
+				},
+				{
+					"name": "InvalidRequest"
+				}
+			]
+		}
+	}
+}

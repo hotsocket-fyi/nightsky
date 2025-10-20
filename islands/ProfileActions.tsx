@@ -2,7 +2,7 @@ import { IS_BROWSER } from "fresh/runtime";
 import Button from "../components/bits/Button.tsx";
 import { useEffect, useState } from "preact/hooks";
 import { Account, client } from "../support/bsky.ts";
-import { AtURI } from "../support/atproto.ts";
+import { AtURI } from "@/lib.ts";
 
 enum FollowStates {
 	NONE = "Follow",

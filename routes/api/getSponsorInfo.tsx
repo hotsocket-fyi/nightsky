@@ -1,16 +1,15 @@
-import { ATRecord, DID, ValidateDID, XQuery } from "../../support/atproto.ts";
-import { ValidationError } from "../../support/errors.ts";
 import { aOrAn, define, errorResponse } from "../../utils.ts";
 import { SignJWT } from "@panva/jose";
 import { Gist } from "../../support/github.ts";
-import { resolveMiniDoc } from "../../support/slingshot.ts";
+import AT from "@/index.ts";
+import { assert } from "@std/assert";
 
 export type GetSponsorInfoData = {
-	did: DID;
+	did: string;
 	forceRecheck?: boolean;
 };
 export type GetSponsorInfoResponse = {
-	did: DID; // just in case you forgot :P
+	did: string; // just in case you forgot :P
 	cached: boolean;
 	info: SponsorInfo;
 };
@@ -72,14 +71,28 @@ async function getToken(jwt: string): Promise<string> {
 function badCheck(reason: string): SponsorInfo {
 	return { linked: false, failReason: reason, checkDate: new Date() };
 }
-async function determineInfo(did: DID): Promise<SponsorInfo> {
+async function determineInfo(did: string): Promise<SponsorInfo> {
 	// grab link record, direct from pds to avoid timing issues
-	const doc = await resolveMiniDoc(did);
-	const ghlink = await XQuery<ATRecord<GithubLink>>("com.atproto.repo.getRecord", {
-		repo: doc.did,
-		collection: "pro.hotsocket.nightsky.github",
-		rkey: "self",
-	}, doc.pds);
+	const doc = await AT.com.bad_example.identity.resolveMiniDoc(
+		new URL("https://slingshot.microcosm.blue"),
+		{
+			identifier: did,
+		},
+	);
+	assert(!("error" in doc));
+	const ghlink = await AT.com.atproto.repo.getRecord(
+		new URL(doc.pds),
+		{
+			repo: doc.did,
+			collection: "pro.hotsocket.nightsky.github",
+			rkey: "self",
+		},
+	);
+	//  await XQuery<ATRecordReply<GithubLink>>("com.atproto.repo.getRecord", {
+	// 	repo: doc.did,
+	// 	collection: "pro.hotsocket.nightsky.github",
+	// 	rkey: "self",
+	// }, doc.pds);
 	if ("error" in ghlink) {
 		console.log(ghlink);
 		return badCheck("record not found");
@@ -126,7 +139,8 @@ export const handler = define.handlers({
 		let req: GetSponsorInfoData;
 		try {
 			req = await ctx.req.json() as GetSponsorInfoData;
-			const did = ValidateDID(req.did);
+			// const did = ValidateDID(req.did);
+			const did = req.did;
 
 			const kv = await Deno.openKv();
 
@@ -174,9 +188,9 @@ export const handler = define.handlers({
 			if (error instanceof SyntaxError) {
 				return errorResponse(400, error);
 			}
-			if (error instanceof ValidationError) {
-				return errorResponse(400, error);
-			}
+			// if (error instanceof ValidationError) {
+			// 	return errorResponse(400, error);
+			// }
 			if (error instanceof LinkError) {
 				return errorResponse(400, error);
 			}

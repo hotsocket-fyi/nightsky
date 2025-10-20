@@ -13,3 +13,5 @@ vendor/
 
 .DS_Store
 idiot_references/
+_xlexicons/
+support/atproto/generated

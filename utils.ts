@@ -1,5 +1,5 @@
 import { createDefine } from "fresh";
-import { XError } from "./support/bsky.ts";
+import { XError } from "@/lib.ts";
 
 // This specifies the type of "ctx.state" which is used to share
 // data among middlewares, layouts and routes.

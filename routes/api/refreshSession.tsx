@@ -2,6 +2,7 @@ import { define } from "../../utils.ts";
 import { Session } from "../../support/bsky.ts";
 import { getCookies } from "@std/http/cookie";
 import { assert } from "@std/assert/assert";
+import { XError } from "@/lib.ts";
 
 export type RefreshSessionData = {
 	pds: string;
@@ -10,7 +11,12 @@ export type RefreshSessionData = {
 export const handler = define.handlers({
 	async POST(ctx) {
 		const cookies = getCookies(ctx.req.headers);
-		assert(cookies["refreshJwt"]);
+		if (!cookies["refreshJwt"]) {
+			return new Response(JSON.stringify({
+				error: "InvalidRequest",
+				message: "Missing refreshJWT in request cookies.",
+			} as XError));
+		}
 		const refreshJwt = cookies["refreshJwt"];
 		const reqData = await ctx.req.json() as RefreshSessionData;
 		assert(reqData.pds);

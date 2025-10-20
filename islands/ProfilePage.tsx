@@ -22,6 +22,7 @@ export default function ProfilePage({ id }: { id: string }) {
 			setLoading(true);
 			const acct = await client.getAccount(id);
 			setAccount(acct);
+			console.log(acct);
 			acct.followers.then((x) => setFollowers(x.toLocaleString()));
 			client.getSponsorInfo(acct.doc.did).then((x) => setSponsorInfo(x.info));
 			setLoading(false);

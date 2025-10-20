@@ -51,9 +51,9 @@ export default function Login() {
 			>
 				<form onSubmit={handleSubmit}>
 					<label for="id">Handle/DID</label>
-					<input type="text" name="id" ref={idRef} />
+					<input type="text" name="id" ref={idRef} autocomplete="username" required />
 					<label for="pass">Password</label>
-					<input type="password" name="pass" ref={passRef} />
+					<input type="password" name="pass" ref={passRef} autocomplete="current-password" required />
 					<button type="submit">HIT IT</button>
 				</form>
 			</Modal>

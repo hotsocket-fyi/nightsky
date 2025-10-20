@@ -4,7 +4,7 @@ import { client } from "../support/bsky.ts";
 import { contextActions } from "../signals/context.ts";
 import PostFeed from "./PostFeed.tsx";
 import { PostActions } from "./actions/PostActions.tsx";
-import { AtURI } from "../support/atproto.ts";
+import { AtURI } from "@/lib.ts";
 
 export default function PostPage({ did, id }: { did: string; id: string }) {
 	useEffect(() => {

@@ -1,0 +1,70 @@
+{
+	"lexicon": 1,
+	"id": "com.bad-example.identity.resolveMiniDoc",
+	"defs": {
+		"main": {
+			"type": "query",
+			"description": "Like com.atproto.identity.resolveIdentity but instead of the full didDoc it returns an atproto-relevant subset.",
+			"parameters": {
+				"type": "params",
+				"required": [
+					"identifier"
+				],
+				"properties": {
+					"identifier": {
+						"type": "string",
+						"format": "at-identifier",
+						"description": "Handle or DID to resolve."
+					}
+				}
+			},
+			"output": {
+				"encoding": "application/json",
+				"schema": {
+					"type": "ref",
+					"ref": "#miniDoc"
+				}
+			},
+			"errors": [
+				{
+					"name": "HandleNotFound",
+					"description": "The resolution process confirmed that the handle does not resolve to any DID."
+				},
+				{
+					"name": "DidNotFound",
+					"description": "The DID resolution process confirmed that there is no current DID."
+				},
+				{
+					"name": "DidDeactivated",
+					"description": "The DID previously existed, but has been deactivated."
+				}
+			]
+		},
+		"miniDoc": {
+			"type": "object",
+			"required": [
+				"did",
+				"handle",
+				"pds",
+				"signing_key"
+			],
+			"properties": {
+				"did": {
+					"type": "string",
+					"format": "did"
+				},
+				"handle": {
+					"type": "string",
+					"format": "handle"
+				},
+				"pds": {
+					"type": "string",
+					"format": "uri"
+				},
+				"signing_key": {
+					"type": "string"
+				}
+			}
+		}
+	}
+}
