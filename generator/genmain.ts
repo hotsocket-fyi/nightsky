@@ -1,7 +1,7 @@
 import { generateFile } from "./generateFile.ts";
 import { generateIndex } from "./generateIndex.ts";
 
-const XSRCPATH = "./_xlexicons";
+const XSRCPATH = "./_external/atproto/lexicons";
 const SRCPATH = "./lexicons";
 const OUTPATH = "./support/atproto/generated";
 

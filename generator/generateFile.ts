@@ -15,7 +15,7 @@ import {
 	ImportInfo,
 	PRINTER,
 	propsContainUnknown,
-} from "./generator2.ts";
+} from "./generator.ts";
 
 export function generateFile(data: string): string {
 	// so basically load the lexicon into the typed "Lexicon" object deal

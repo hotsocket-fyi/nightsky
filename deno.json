@@ -4,7 +4,7 @@
 		"codegen": "deno run --allow-read --allow-write --allow-env ./generator/genmain.ts",
 		"check": "deno fmt --check . --ignore=node_modules,support/atproto/generated && deno lint . --ignore=node_modules && deno check --ignore=node_modules",
 		"dev": "deno run -A --unstable-kv --env npm:vite",
-		"build": "vite build",
+		"build": "git clone https://github.com/bluesky-social/atproto.git _external/atproto && deno task codegen && vite build",
 		"start": "deno serve -A --unstable-kv --env _fresh/server.js",
 		"update": "deno run -A -r jsr:@fresh/update .",
 		"makejwt": "deno run --allow-env --env ./tools/makejwt.ts"
@@ -30,7 +30,6 @@
 		"@fresh/plugin-vite": "jsr:@fresh/plugin-vite@^1.0.4",
 		"typescript": "npm:typescript@^5.9.3",
 		"vite": "npm:vite@^7.1.3",
-
 		"_/": "./",
 		"#/": "./support/",
 		"@/": "./support/atproto/"

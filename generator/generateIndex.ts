@@ -15,7 +15,7 @@ import {
 	ImportInfo,
 	PRINTER,
 	propsContainUnknown,
-} from "./generator2.ts";
+} from "./generator.ts";
 
 // this machine creates _index.ts
 export async function generateIndex(dir: string): Promise<string> {
